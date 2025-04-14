@@ -27,7 +27,11 @@ public class Order {
 
     private double totalAmount;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status = OrderStatus.PENDING;
+
+
+
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -37,4 +41,7 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
     @JsonManagedReference
     private List<OrderItem> items;
+
+
+
 }

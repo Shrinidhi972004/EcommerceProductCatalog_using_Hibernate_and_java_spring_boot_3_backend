@@ -1,6 +1,8 @@
 package com.shrinidhi.EcommerceProductCatalog.controller;
 
 import com.shrinidhi.EcommerceProductCatalog.dto.AuthRequest;
+import com.shrinidhi.EcommerceProductCatalog.dto.RegisterRequest;
+import com.shrinidhi.EcommerceProductCatalog.dto.ForgotPasswordRequest;
 import com.shrinidhi.EcommerceProductCatalog.model.User;
 import com.shrinidhi.EcommerceProductCatalog.security.JwtUtil;
 import com.shrinidhi.EcommerceProductCatalog.service.UserService;
@@ -31,8 +33,8 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody User user) {
-        userService.registerUser(user);
+    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
+        userService.registerWithSecurityQuestions(request);
         return ResponseEntity.ok("User registered successfully");
     }
 
@@ -57,8 +59,6 @@ public class AuthController {
     public ResponseEntity<String> logout(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            // No backend storage, so client handles the logout
             return ResponseEntity.ok("Logout successful. Token removed on client.");
         } else {
             return ResponseEntity.badRequest().body("No token found.");
@@ -80,11 +80,21 @@ public class AuthController {
 
             Map<String, String> tokens = new HashMap<>();
             tokens.put("accessToken", newAccessToken);
-            tokens.put("refreshToken", refreshToken); // returning the same refresh token
+            tokens.put("refreshToken", refreshToken);
 
             return ResponseEntity.ok(tokens);
         }
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Invalid refresh token");
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        boolean success = userService.resetPasswordWithSecurityAnswers(request);
+        if (success) {
+            return ResponseEntity.ok("Password reset successful.");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Security answers are incorrect.");
+        }
     }
 }

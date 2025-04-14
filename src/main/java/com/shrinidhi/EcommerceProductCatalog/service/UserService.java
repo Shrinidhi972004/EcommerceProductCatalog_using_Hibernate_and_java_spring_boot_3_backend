@@ -1,5 +1,7 @@
 package com.shrinidhi.EcommerceProductCatalog.service;
 
+import com.shrinidhi.EcommerceProductCatalog.dto.RegisterRequest;
+import com.shrinidhi.EcommerceProductCatalog.dto.ForgotPasswordRequest;
 import com.shrinidhi.EcommerceProductCatalog.model.User;
 import com.shrinidhi.EcommerceProductCatalog.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,19 +27,35 @@ public class UserService implements UserDetailsService {
     }
 
     public User registerUser(User user) {
-        System.out.println("🔐 Attempting to register user: " + user.getUsername());
-        System.out.println("🔐 Original password: " + user.getPassword());
-
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        return userRepository.save(user);
+    }
 
-        System.out.println("🔐 Encrypted password: " + user.getPassword());
-        System.out.println("🔐 Role: " + user.getRole());
+    public User registerWithSecurityQuestions(RegisterRequest request) {
+        User user = User.builder()
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(request.getRole())
+                .securityAnswer1(request.getSecurityAnswer1())
+                .securityAnswer2(request.getSecurityAnswer2())
+                .build();
 
-        User savedUser = userRepository.save(user);
+        return userRepository.save(user);
+    }
 
-        System.out.println("✅ User saved with ID: " + savedUser.getId());
-
-        return savedUser;
+    public boolean resetPasswordWithSecurityAnswers(ForgotPasswordRequest request) {
+        return userRepository.findByUsername(request.getUsername())
+                .map(user -> {
+                    if (user.getSecurityAnswer1().equalsIgnoreCase(request.getAnswer1().trim())
+                            && user.getSecurityAnswer2().equalsIgnoreCase(request.getAnswer2().trim())) {
+                        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+                        userRepository.save(user);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                })
+                .orElse(false);
     }
 
     @Override

@@ -31,6 +31,7 @@ public class OrderService {
     @Autowired
     private JwtUtil jwtUtil;
 
+    // Extract username from Authorization header
     private String getUsernameFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -50,31 +51,49 @@ public class OrderService {
             throw new ResourceNotFoundException("Cart is empty");
         }
 
+        double totalAmount = cartItems.stream()
+                .mapToDouble(item -> item.getProduct().getPrice() * item.getQuantity())
+                .sum();
+
         Order order = Order.builder()
                 .user(user)
                 .orderDate(LocalDateTime.now())
-                .totalAmount(cartItems.stream()
-                        .mapToDouble(item -> item.getProduct().getPrice() * item.getQuantity())
-                        .sum())
+                .totalAmount(totalAmount)
+                .status(OrderStatus.PENDING)
                 .build();
+
         orderRepository.save(order);
 
-        List<OrderItem> orderItems = cartItems.stream().map(cartItem -> OrderItem.builder()
-                .order(order)
-                .product(cartItem.getProduct())
-                .quantity(cartItem.getQuantity())
-                .price(cartItem.getProduct().getPrice())
-                .build()).collect(Collectors.toList());
+        List<OrderItem> orderItems = cartItems.stream()
+                .map(cartItem -> OrderItem.builder()
+                        .order(order)
+                        .product(cartItem.getProduct())
+                        .quantity(cartItem.getQuantity())
+                        .price(cartItem.getProduct().getPrice())
+                        .build())
+                .collect(Collectors.toList());
 
         orderItemRepository.saveAll(orderItems);
 
-        // Clear user's cart after placing order
-        cartItemRepository.deleteByUser(user);
+        cartItemRepository.deleteByUser(user); // Clear cart
 
+        order.setItems(orderItems); // Attach order items to response
         return order;
     }
 
-    public List<Order> getOrdersForUser(User user) {
+    // Get orders for the logged-in user
+    public List<Order> getOrdersForUser(HttpServletRequest request) {
+        String username = getUsernameFromRequest(request);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return orderRepository.findByUser(user);
+    }
+
+    // Admin can update the status of an order
+    public Order updateOrderStatus(Long orderId, OrderStatus status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
+        order.setStatus(status);
+        return orderRepository.save(order);
     }
 }

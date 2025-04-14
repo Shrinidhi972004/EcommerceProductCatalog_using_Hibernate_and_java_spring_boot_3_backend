@@ -1,10 +1,7 @@
 package com.shrinidhi.EcommerceProductCatalog.controller;
 
-import com.shrinidhi.EcommerceProductCatalog.exception.ResourceNotFoundException;
 import com.shrinidhi.EcommerceProductCatalog.model.Order;
-import com.shrinidhi.EcommerceProductCatalog.model.User;
-import com.shrinidhi.EcommerceProductCatalog.repository.UserRepository;
-import com.shrinidhi.EcommerceProductCatalog.security.JwtUtil;
+import com.shrinidhi.EcommerceProductCatalog.model.OrderStatus;
 import com.shrinidhi.EcommerceProductCatalog.service.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,38 +16,30 @@ import java.util.List;
 public class OrderController {
 
     @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
     private OrderService orderService;
 
-    private String getUsernameFromRequest(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new RuntimeException("Missing or invalid Authorization header");
-        }
-        return jwtUtil.extractUsername(authHeader.substring(7));
-    }
-
+    // User can place an order
     @PreAuthorize("hasRole('USER')")
     @PostMapping("/place")
-    public ResponseEntity<?> placeOrder(HttpServletRequest request) {
-        // Now calling placeOrder using request directly
+    public ResponseEntity<Order> placeOrder(HttpServletRequest request) {
         Order order = orderService.placeOrder(request);
         return ResponseEntity.ok(order);
     }
 
+    // User can view their orders
     @PreAuthorize("hasRole('USER')")
     @GetMapping("/user")
     public ResponseEntity<List<Order>> getUserOrders(HttpServletRequest request) {
-        String username = getUsernameFromRequest(request);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        List<Order> orders = orderService.getOrdersForUser(user);
+        List<Order> orders = orderService.getOrdersForUser(request);
         return ResponseEntity.ok(orders);
+    }
+
+    // Admin can update order status
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<Order> updateOrderStatus(@PathVariable Long orderId,
+                                                   @RequestBody OrderStatus status) {
+        Order updatedOrder = orderService.updateOrderStatus(orderId, status);
+        return ResponseEntity.ok(updatedOrder); // ✅ Make sure this line is present!
     }
 }

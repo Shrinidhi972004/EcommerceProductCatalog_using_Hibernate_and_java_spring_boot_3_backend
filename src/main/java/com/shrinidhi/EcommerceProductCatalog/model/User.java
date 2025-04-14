@@ -26,6 +26,12 @@ public class User {
 
     private String role; // e.g., ROLE_USER or ROLE_ADMIN
 
+    @Column(name = "security_answer1")
+    private String securityAnswer1;  // Answer for "What was the name of your first pet?"
+
+    @Column(name = "security_answer2")
+    private String securityAnswer2;  // Answer for "What is the name of your favorite teacher?"
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<CartItem> cartItems;
